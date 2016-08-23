@@ -1,5 +1,10 @@
 #!/bin/bash
 
+# Please set these values whatever you want.
+
+LDIF='generated_ldif.ldif' # Output file
+OU_DN='ou=People' # The organizational unit dn e.g ou=people,dc=base,dc=dn
+BASE_DN='dc=aydintd,dc=net' # Base DN definition e.g dc=base,dc=dn
 
 # warn people with this.
 warn() {
@@ -31,12 +36,35 @@ parse_csv() {
 }
 
 build_ldif() {
-	echo $first_name $last_name : $username : $password_hash : $mail
+    warn "Modifying MD5 password hash for $username to use in OpenLDAP..."
+    password_encoded=$(perl ./hexpair.pl $password_hash)
+    warn "Generating a LDIF content for $username..."
+    echo -e "dn: uid=$username,$OU_DN,$BASE_DN
+    uid: $username
+    mail: $mail
+    sn: $last_name
+    cn: $username
+    givenName: $first_name
+    objectClass: inetOrgPerson
+    objectClass: organizationalPerson
+    objectClass: person
+    objectClass: top
+    userPassword: $password_encoded \n
+    " >> $LDIF
+	# echo $first_name $last_name : $username : $password_encoded : $mail
 }
 
 main() {
     warn "Parsing file : $CSV ..."
     parse_csv
+	warn "$default_pass has been set as a password for passwordless users."
+    warn "Modifying freshly generated LDIF file..."
+    sed -i 's/ //g' $LDIF
+    warn "Done. Please check $LDIF file content."
+    warn "If there are any duplicated user information in the given CSV file,
+    Please use ldapadd -c -Wx -D 'cn=admin,dc=base,dc=dn' -f $LDIF command to import newly
+    generated users."
+    exit 0
 }
 
 if [[ "$#" -ne 1 ]]; then
@@ -44,6 +72,5 @@ if [[ "$#" -ne 1 ]]; then
 else
 	CSV=$1
     default_pass=$(pwgen 16 -y -c 1)
-	main
-    warn "$default_pass has been set as a password for passwordless users."
+   	main
 fi
