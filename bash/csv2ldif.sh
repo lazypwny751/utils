@@ -18,6 +18,11 @@ die() {
     exit 1
 }
 
+# Parsing CSV file, get md5 password hashes field, if exists
+# use hexpair.pl script to present all hashes with hexpair presentation
+# if does not exist (empty passwords), generate a 16 char long password
+# in run-time and hash the newly generated password with md5 for openldap via slappasswd.
+
 parse_csv() {
 	while read -r line; do
         first_name=`echo $line | awk -F ',' '{print $2}'`
@@ -40,6 +45,8 @@ parse_csv() {
         build_ldif
     done < $CSV
 }
+
+# Build LDIF file for importing the users.
 
 build_ldif() {
     warn "Generating LDIF content for $username..."
