@@ -9,12 +9,12 @@ PASSWDLESS='passwordless_users.txt'
 
 # warn people with this.
 warn() {
-	echo >&2 "$*"
+    echo >&2 "$*"
 }
 
 # kill if necessary.
 die() {
-	warn "$*"
+    warn "$*"
     exit 1
 }
 
@@ -24,7 +24,7 @@ die() {
 # in run-time and hash the newly generated password with md5 for openldap via slappasswd.
 
 parse_csv() {
-	while read -r line; do
+    while read -r line; do
         first_name=`echo $line | awk -F ',' '{print $2}'`
         last_name=`echo $line | awk -F ',' '{print $3}'`
         if [[ $first_name == *'"'* || $last_name == *'"'* ]]; then
@@ -35,12 +35,12 @@ parse_csv() {
         password_hash=`echo $line | awk -F ',' '{print $5}'`
         mail=`echo $line | awk -F ',' '{print $6}'`
         if [[ $password_hash == '' ]]; then
-    		default_pass=$(pwgen 16 -y -c 1)
+            default_pass=$(pwgen 16 -y -c 1)
             echo "Passwordless $username will be set as $default_pass" >> $PASSWDLESS
             password_encoded=$(slappasswd -h {md5} -s "$default_pass")
         else
-			warn "Modifying MD5 password hash for $username to use in OpenLDAP..."
-    		password_encoded=$(perl ./hexpair.pl $password_hash)
+            warn "Modifying MD5 password hash for $username to use in OpenLDAP..."
+            password_encoded=$(perl ./hexpair.pl $password_hash)
         fi
         build_ldif
     done < $CSV
@@ -62,7 +62,7 @@ build_ldif() {
     objectClass: top
     userPassword: $password_encoded \n
     " >> $LDIF
-	# echo $first_name $last_name : $username : $password_encoded : $mail
+    # echo $first_name $last_name : $username : $password_encoded : $mail
 }
 
 main() {
@@ -79,8 +79,8 @@ main() {
 }
 
 if [[ "$#" -ne 1 ]]; then
-	die "$0 only takes one argument, and this should be the CSV file you want to parse."
+    die "$0 only takes one argument, and this should be the CSV file you want to parse."
 else
-	CSV=$1
-   	main
+    CSV=$1
+    main
 fi
