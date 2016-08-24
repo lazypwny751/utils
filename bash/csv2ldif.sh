@@ -5,6 +5,7 @@
 LDIF='generated_ldif.ldif' # Output file
 OU_DN='ou=People' # The organizational unit dn e.g ou=people,dc=base,dc=dn
 BASE_DN='dc=aydintd,dc=net' # Base DN definition e.g dc=base,dc=dn
+PASSWDLESS='passwordless_users.txt'
 
 # warn people with this.
 warn() {
@@ -29,16 +30,19 @@ parse_csv() {
         password_hash=`echo $line | awk -F ',' '{print $5}'`
         mail=`echo $line | awk -F ',' '{print $6}'`
         if [[ $password_hash == '' ]]; then
-            password_hash=$(echo "$default_pass" | md5sum | awk '{print $1}')
+    		default_pass=$(pwgen 16 -y -c 1)
+            echo "Passwordless $username will be set as $default_pass" >> $PASSWDLESS
+            password_encoded=$(slappasswd -h {md5} -s "$default_pass")
+        else
+			warn "Modifying MD5 password hash for $username to use in OpenLDAP..."
+    		password_encoded=$(perl ./hexpair.pl $password_hash)
         fi
         build_ldif
     done < $CSV
 }
 
 build_ldif() {
-    warn "Modifying MD5 password hash for $username to use in OpenLDAP..."
-    password_encoded=$(perl ./hexpair.pl $password_hash)
-    warn "Generating a LDIF content for $username..."
+    warn "Generating LDIF content for $username..."
     echo -e "dn: uid=$username,$OU_DN,$BASE_DN
     uid: $username
     mail: $mail
@@ -57,10 +61,10 @@ build_ldif() {
 main() {
     warn "Parsing file : $CSV ..."
     parse_csv
-	warn "$default_pass has been set as a password for passwordless users."
     warn "Modifying freshly generated LDIF file..."
     sed -i 's/ //g' $LDIF
     warn "Done. Please check $LDIF file content."
+    warn "Check the $PASSWDLESS file to check out what password has been set for each passwordless user"
     warn "If there are any duplicated user information in the given CSV file,
     Please use ldapadd -c -Wx -D 'cn=admin,dc=base,dc=dn' -f $LDIF command to import newly
     generated users."
@@ -71,6 +75,5 @@ if [[ "$#" -ne 1 ]]; then
 	die "$0 only takes one argument, and this should be the CSV file you want to parse."
 else
 	CSV=$1
-    default_pass=$(pwgen 16 -y -c 1)
    	main
 fi
